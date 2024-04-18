@@ -2,6 +2,7 @@ import bpy
 import json
 
 
+# converts a blender Nodegroup to a json string
 def export_node_group_to_json(name):
     if bpy.data.node_groups.find(name) == -1:
         return -1
@@ -14,7 +15,7 @@ def export_node_group_to_json(name):
         'links': []
     }
 
-    interface = []
+    # storing the in and outputs of the Tree
     for i in nodeTree.interface.items_tree:
         if i.item_type == 'SOCKET':
             item = {
@@ -37,9 +38,9 @@ def export_node_group_to_json(name):
                     item['subtype'] = i.subtype
                 case 'NodeSocketColor':
                     item['default_value'] = (i.default_value[0], i.default_value[1], i.default_value[2], i.default_value[3])
-            interface.append(item)
-    nodeGroup['interface'] = interface
+            nodeGroup['interface'].append(item)
 
+    # storing all nodes of the Tree
     for n in nodeTree.nodes:
         inputs = {}
         for i in n.inputs:
@@ -77,6 +78,7 @@ def export_node_group_to_json(name):
 
         nodeGroup['nodes'].append(node)
 
+    # store all connections in Tree
     for l in nodeTree.links:
         link = {
             'from_node': str(l.from_node.name),
@@ -93,23 +95,25 @@ def export_node_group_to_json(name):
     return (json.dumps(nodeGroup))
 
 
+# uses a json created with the export function to rebuild the blender nodegroup
 def import_node_group_from_json(name, data):
     if data.replace(" ", "") != str(export_node_group_to_json(name)).replace(" ", ""):
-        # Save all nodeGroups with this Nodetree for reassignment
-        nodeGroups = []
+        # Save all nodeGroups with this Nodetree for reassignment with the new tree
+        node_groups = []
         for nodeGroup in bpy.data.node_groups:
             for node in nodeGroup.nodes:
                 if str(node.__class__.__name__) == 'ShaderNodeGroup':
                     if node.node_tree is not None and node.node_tree.name == name:
-                        nodeGroups.append(node)
+                        node_groups.append(node)
         for material in bpy.data.materials:
             if material.node_tree is not None:
                 for node in material.node_tree.nodes:
                     if str(node.__class__.__name__) == 'ShaderNodeGroup':
                         if node.node_tree is not None and node.node_tree.name == name:
-                            nodeGroups.append(node)
+                            node_groups.append(node)
 
         data = json.loads(data)
+        # creating new node tree and deleting existing with same name
         if bpy.data.node_groups.__contains__(name):
             bpy.data.node_groups.remove(bpy.data.node_groups[name])
         match data['type']:
@@ -118,6 +122,7 @@ def import_node_group_from_json(name, data):
             case 'GEOMETRY':
                 node_tree = bpy.data.node_groups.new(name, 'GeometryNodeTree')
 
+        # creating in and outputs of the tree
         for i in data['interface']:
             item = node_tree.interface.new_socket(i['name'], in_out=i['in_out'], socket_type=i['socket_type'])
             item.default_attribute_name = i['default_attribute_name']
@@ -136,6 +141,7 @@ def import_node_group_from_json(name, data):
                 case 'NodeSocketColor':
                     item.default_value = i['default_value']
 
+        # creating the nodes of the tree
         nodes = node_tree.nodes
         nodes.clear()
         for n in data['nodes']:
@@ -157,6 +163,7 @@ def import_node_group_from_json(name, data):
                             if input.identifier == id:
                                 input.default_value = default
 
+        # connecting the nodes of the tree
         for l in data['links']:
             input = None
             output = None
@@ -171,5 +178,6 @@ def import_node_group_from_json(name, data):
             else:
                 print('error at ', l['from_node'], ' ', l['from_socket'], '->', l['to_node'], ' ', l['to_socket'])
 
-        for node in nodeGroups:
+        # assigning the node tree to all nodes that had the old version of it
+        for node in node_groups:
             node.node_tree = bpy.data.node_groups[name]

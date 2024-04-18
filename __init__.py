@@ -1,9 +1,4 @@
 import bpy
-from bpy.app.handlers import persistent
-
-from .cb_functions import build_collections
-from .cb_nodeGroups import setupNodeGroups
-from .cb_nodeGroups_v4 import setupNodeGroups as setupNodeGroups_v4
 
 bl_info = {
     "name": "Caustics_Baking",

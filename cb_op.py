@@ -1,18 +1,16 @@
 import threading
 from datetime import datetime
 import bpy
-import gpu
-import json
 import numpy as np
 
-from .cb_mainfunctions import compute_caustic_map
+from .cb_textureRenderingFunctions import compute_caustic_map
 from .cb_const import CAUSTIC_SHADOW_ATTRIBUTE, CAUSTIC_SOURCE_ATTRIBUTE, UV_SCALE_MAP_NAME, \
     CAUSTIC_CONTRIBUTOR_ATTRIBUTE, \
     CAUSTIC_RECEIVER_ATTRIBUTE
 from .cb_functions import reset_compositor, reset_scene, scene_setup, setup_compositor, denoising, color_sampling, \
     is_debug, \
     auto_cam_placement, build_collections, remove_collections, cam_setup, unset_collection, set_collection
-from .cb_nodeGroups_v4 import setup_shader_node_groups, setup_geo_node_groups
+from .cb_nodeGroups_v4 import setup_shader_node_group, setup_geo_node_groups
 
 
 class CBSetContributor(bpy.types.Operator):
@@ -29,14 +27,14 @@ class CBSetContributor(bpy.types.Operator):
                     del obj[CAUSTIC_RECEIVER_ATTRIBUTE]
                 if obj.get(CAUSTIC_SHADOW_ATTRIBUTE, None) is not None:
                     del obj[CAUSTIC_SHADOW_ATTRIBUTE]
-        setup_shader_node_groups()
+        setup_shader_node_group()
         return {"FINISHED"}
 
 
 class CBUnSetContributor(bpy.types.Operator):
     bl_idname = "cb.unset_contributor"
     bl_label = "Remove Contributor"
-    bl_description = "Removes object from contributors"
+    bl_description = "Removes contributor attribute"
 
     def execute(self, context):
         for obj in bpy.context.selected_objects:
@@ -62,14 +60,14 @@ class CBSetBakingTarget(bpy.types.Operator):
                     del obj[CAUSTIC_CONTRIBUTOR_ATTRIBUTE]
                 if obj.get(CAUSTIC_SHADOW_ATTRIBUTE, None) is not None:
                     del obj[CAUSTIC_SHADOW_ATTRIBUTE]
-        setup_shader_node_groups()
+        setup_shader_node_group()
         return {"FINISHED"}
 
 
 class CBUnSetBakingTarget(bpy.types.Operator):
     bl_idname = "cb.unset_baking_target"
     bl_label = "Remove Reciever"
-    bl_description = "Removes object from baking"
+    bl_description = "Removes baking attribute"
 
     def execute(self, context):
         for obj in bpy.context.selected_objects:
@@ -91,13 +89,13 @@ class CBSetShadowCaster(bpy.types.Operator):
                     del obj[CAUSTIC_RECEIVER_ATTRIBUTE]
                 if obj.get(CAUSTIC_CONTRIBUTOR_ATTRIBUTE, None) is not None:
                     del obj[CAUSTIC_CONTRIBUTOR_ATTRIBUTE]
-        setup_shader_node_groups()
+        setup_shader_node_group()
         return {"FINISHED"}
 
 
 class CBUnSetShadowCaster(bpy.types.Operator):
     bl_idname = "cb.unset_shadow_caster"
-    bl_label = "Remove Shadow Caster"
+    bl_label = "Remove Shadow Caster attribute"
     bl_description = ""
 
     def execute(self, context):
@@ -110,21 +108,21 @@ class CBUnSetShadowCaster(bpy.types.Operator):
 class CBSetCausticSource(bpy.types.Operator):
     bl_idname = "cb.set_caustic_source"
     bl_label = "Set Caustic Source"
-    bl_description = "sets the selcted light to be the caustic source"
+    bl_description = "sets the selected light to be the caustic source"
 
     def execute(self, context):
         for obj in bpy.context.selected_objects:
             if obj.type == 'LIGHT':
                 if ('POINT', 'SUN').__contains__(obj.data.type):
                     obj[CAUSTIC_SOURCE_ATTRIBUTE] = True
-        setup_shader_node_groups()
+        setup_shader_node_group()
         return {"FINISHED"}
 
 
 class CBUnsetCausticSource(bpy.types.Operator):
     bl_idname = "cb.unset_caustic_source"
     bl_label = "Remove Caustic Source"
-    bl_description = "removes this light from caustic source"
+    bl_description = "removes caustic source attribute"
 
     def execute(self, context):
         for obj in bpy.context.selected_objects:
@@ -137,13 +135,13 @@ class CBUnsetCausticSource(bpy.types.Operator):
 class CBRunBaking(bpy.types.Operator):
     bl_idname = "cb.run_bake"
     bl_label = "Run Caustics Bake"
-    bl_description = ""
+    bl_description = "starts the baking process"
 
     def __init__(self):
         self.ui_updated = False
         self.light_amount = None
         self.light_count = 0
-        self.scene_settings = None
+        self.original_scene_settings = None
         self.active_cam = None
         self.cams = None
         cb_props = bpy.context.scene.cb_props
@@ -180,21 +178,26 @@ class CBRunBaking(bpy.types.Operator):
     def execute(self, context):
         return {"FINISHED"}
 
+    # function that is called after a rendering is complete
     def post(self, scene, context=None):
-        ui_update = False
         if not self.finish:
             if self.colored:
+                # process for colored image
                 if self.coordinates is None:
+                    # saving the coordinate array and setting up for the color render
                     self.coordinates = np.array(bpy.data.images['Viewer Node'].pixels[:]).reshape(-1, 4)
                     if (self.coordinates[:, 2] > 0).any():
                         color_sampling(1)
                     else:
+                        # with no valid coordinates found all remaining samples for the camera are skipped
                         scene.cycles.sample_offset = scene.cycles.sample_offset + 1
                         self.coordinates = None
                         self.counter += self.active_cam['remaining']
                         self.active_cam['remaining'] = 0
                         self.update_info()
                 else:
+                    # starting the processing thread with the saved coordinates and the color information of the
+                    # current render
                     if (4, 0, 0) > bpy.app.version:
                         fov = self.active_cam.data.cycles.fisheye_fov
                     else:
@@ -210,14 +213,17 @@ class CBRunBaking(bpy.types.Operator):
                     self.threads.append(thread)
                     thread.start()
 
+                    # switching to a new random sampling position within every pixel
                     scene.cycles.sample_offset = scene.cycles.sample_offset + 1
 
+                    # resetting for next sample
                     self.coordinates = None
                     self.active_cam['remaining'] -= 1
                     self.counter += 1
                     self.update_info()
                     color_sampling(0)
             else:
+                # process with only luminance, coordinate information is directly given to the processing function
                 if (4, 0, 0) > bpy.app.version:
                     fov = self.active_cam.data.cycles.fisheye_fov
                 else:
@@ -233,11 +239,13 @@ class CBRunBaking(bpy.types.Operator):
                 self.threads.append(thread)
                 thread.start()
 
+                # resetting for next sample
                 scene.cycles.sample_offset = scene.cycles.sample_offset + 1
                 if (np.array(bpy.data.images['Viewer Node'].pixels[:]).reshape(-1, 4)[:, 2] > 0).any():
                     self.active_cam['remaining'] -= 1
                     self.counter += 1
                 else:
+                    # with no valid coordinates found all remaining samples for the camera are skipped
                     self.counter += self.active_cam['remaining']
                     self.active_cam['remaining'] = 0
                 self.update_info()
@@ -247,6 +255,7 @@ class CBRunBaking(bpy.types.Operator):
     def cancelled(self, scene, context=None):
         self.stop = True
 
+    # updates the information displayed in the statusbar
     def update_info(self):
         if self.counter < self.samples:
             bpy.context.scene.cb_props.progress_indicator_text = f'Light {self.light_count + 1}/{self.light_amount} | Render {self.counter + 1}/{self.samples}'
@@ -264,16 +273,20 @@ class CBRunBaking(bpy.types.Operator):
             cb_props = bpy.context.scene.cb_props
             self.update_info()
             if self.finish and not self.stop:
+                # waiting for the data processing to finish which is handled in separate threads
                 for thread in self.threads:
                     thread.join()
 
+                # setting the image alpha to 1 and transferring the data into a blender image object
                 self.target[:, 3] = 1
                 self.image.pixels = self.target.reshape(-1)
 
+                # denoising the image
                 if cb_props.denoise:
                     context.scene.cb_props.progress_indicator_text = 'Denoising'
                     self.image.pixels = denoising(self.image.name)
 
+                # saving the image externally
                 self.image.file_format = 'OPEN_EXR'
                 if cb_props.save_image_externally:
                     if cb_props.useImage:
@@ -285,9 +298,11 @@ class CBRunBaking(bpy.types.Operator):
 
                 print("caustic map complete in", datetime.now() - self.startTime)
                 self.stop = True
+
             if self.stop:
+                # resetting the blender scene to its original state
                 reset_compositor()
-                reset_scene(bpy.context.scene, self.scene_settings)
+                reset_scene(bpy.context.scene, self.original_scene_settings)
                 bpy.app.handlers.render_post.remove(self.post)
                 bpy.app.handlers.render_cancel.remove(self.cancelled)
                 remove_collections()
@@ -295,11 +310,14 @@ class CBRunBaking(bpy.types.Operator):
                 context.window_manager.event_timer_remove(self._timer)
                 cb_props.cb_run_baking = None
                 return {"FINISHED"}
+
             elif self.render and self.ui_updated:
                 if self.active_cam['remaining'] <= 0:
                     if len(self.cams) > 0:
+                        # switching to next cam
                         self.active_cam = self.cams.pop()
                     else:
+                        # switching to next light
                         self.light_count += 1
                         if self.light_count < self.light_amount:
                             self.cams = auto_cam_placement(
@@ -312,37 +330,44 @@ class CBRunBaking(bpy.types.Operator):
                             self.update_info()
                         else:
                             self.finish = True
+
+                # starting next sample
                 if self.active_cam['remaining'] > 0:
                     cam_setup(self.active_cam)
                     self.render = False
                     bpy.ops.render.render()
+                    # updating output image
                     self.image.pixels = self.target.reshape(-1)
 
         return {"PASS_THROUGH"}
 
     def invoke(self, context, event):
-        setup_geo_node_groups()
-        build_collections()
         cb_props = bpy.context.scene.cb_props
-        cb_props.cb_run_baking = self
-        self.light_amount = len(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].all_objects)
-        self.cams = auto_cam_placement(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].objects[self.light_count])
-        for cam in self.cams:
-            self.samples += cam['remaining']
-        self.active_cam = self.cams.pop()
-        self.scene_settings = scene_setup(bpy.context.scene)
-        setup_compositor()
-        self.colored = cb_props.colored
+        if cb_props.cb_run_baking is None:
+            # setting up the baking process
+            setup_geo_node_groups()
+            build_collections()
+            cb_props.cb_run_baking = self
+            self.light_amount = len(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].all_objects)
+            self.cams = auto_cam_placement(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].objects[self.light_count])
+            for cam in self.cams:
+                self.samples += cam['remaining']
+            self.active_cam = self.cams.pop()
+            self.original_scene_settings = scene_setup(bpy.context.scene)
+            setup_compositor()
+            self.colored = cb_props.colored
+            self.update_info()
 
-        self.update_info()
-        bpy.app.handlers.render_post.append(self.post)
-        bpy.app.handlers.render_cancel.append(self.cancelled)
-        bpy.context.workspace.status_text_set(info)
-        self._timer = context.window_manager.event_timer_add(0.5, window=context.window)
-        context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
+            # adding handlers and starting modal operator
+            bpy.app.handlers.render_post.append(self.post)
+            bpy.app.handlers.render_cancel.append(self.cancelled)
+            bpy.context.workspace.status_text_set(info)
+            self._timer = context.window_manager.event_timer_add(0.5, window=context.window)
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
 
 
+# callback to display progress information in the statusbar
 def info(header, context):
     layout = header.layout
     layout.label(text="to cancel", icon='EVENT_ESC')

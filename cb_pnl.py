@@ -1,10 +1,8 @@
-import json
 import bpy
-import math
 from bpy.types import Panel
 
 from .cb_const import CAUSTIC_RECEIVER_ATTRIBUTE, CAUSTIC_CONTRIBUTOR_ATTRIBUTE, CAUSTIC_SHADOW_ATTRIBUTE, \
-    CAUSTIC_SOURCE_ATTRIBUTE, CAUSTIC_SENSOR_NAME
+    CAUSTIC_SOURCE_ATTRIBUTE
 
 from .cb_op import CBSetCausticSource, CBSetShadowCaster, CBUnSetShadowCaster, CBSetContributor, \
     CBUnSetContributor, CBSetBakingTarget, CBUnSetBakingTarget, CBRunBaking, CBUnsetCausticSource
@@ -18,11 +16,10 @@ class CB_PT_PanelModifyObject(Panel):
 
     def draw(self, context):
         cb_props = context.scene.cb_props
-
         layout = self.layout
-
         col = layout.column(align=True)
         box = col.box()
+
         if bpy.context.active_object.type != 'LIGHT':
             if bpy.context.active_object.get(CAUSTIC_CONTRIBUTOR_ATTRIBUTE, 0) == 1:
                 col.operator(CBUnSetContributor.bl_idname)
