@@ -106,4 +106,4 @@ class CB_Props(bpy.types.PropertyGroup):
         max=100)
     progress_indicator_text: bpy.props.StringProperty(default="Progress")
     time_elapsed: bpy.props.StringProperty(default='0')
-    cb_run_baking: bpy.types.Operator
+    cb_running_baking: bpy.props.BoolProperty(default=False)

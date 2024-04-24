@@ -308,7 +308,7 @@ class CBRunBaking(bpy.types.Operator):
                 remove_collections()
                 bpy.context.workspace.status_text_set(None)
                 context.window_manager.event_timer_remove(self._timer)
-                cb_props.cb_run_baking = None
+                cb_props.cb_running_baking = False
                 return {"FINISHED"}
 
             elif self.render and self.ui_updated:
@@ -343,11 +343,11 @@ class CBRunBaking(bpy.types.Operator):
 
     def invoke(self, context, event):
         cb_props = bpy.context.scene.cb_props
-        if cb_props.cb_run_baking is None:
+        if not cb_props.cb_running_baking:
             # setting up the baking process
+            cb_props.cb_running_baking = True
             setup_geo_node_groups()
             build_collections()
-            cb_props.cb_run_baking = self
             self.light_amount = len(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].all_objects)
             self.cams = auto_cam_placement(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].objects[self.light_count])
             for cam in self.cams:
