@@ -28,7 +28,7 @@ def setup_geo_node_groups():
 
 
 def get_node_groups():
-    if (4, 1, 0) < bpy.app.version:
+    if (4, 1, 0) > bpy.app.version:
         return v4_0_nodes
     return v4_1_nodes
 
