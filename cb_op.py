@@ -365,6 +365,7 @@ class CBRunBaking(bpy.types.Operator):
             self._timer = context.window_manager.event_timer_add(0.5, window=context.window)
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
+        return {"FINISHED"}
 
 
 # callback to display progress information in the statusbar
