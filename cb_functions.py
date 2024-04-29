@@ -135,12 +135,14 @@ def shader_setup():
         links.new(output.inputs[1], caustic_node.outputs[1])
 
     # Deactivating world shader
-    shader_settings = {
-        'world_use_nodes': bpy.context.scene.world.use_nodes,
-        'world_color': bpy.context.scene.world.color
-    }
-    bpy.context.scene.world.use_nodes = False
-    bpy.context.scene.world.color = (0, 0, 0)
+    shader_settings = None
+    if bpy.context.scene.world:
+        shader_settings = {
+            'world_use_nodes': bpy.context.scene.world.use_nodes,
+            'world_color': bpy.context.scene.world.color
+        }
+        bpy.context.scene.world.use_nodes = False
+        bpy.context.scene.world.color = (0, 0, 0)
     color_sampling(0)
     return shader_settings
 
@@ -154,8 +156,9 @@ def shader_reset(shader_settings):
                 nodes.remove(node)
 
     # restoring world shader
-    bpy.context.scene.world.color = shader_settings['world_color']
-    bpy.context.scene.world.use_nodes = shader_settings['world_use_nodes']
+    if bpy.context.scene.world:
+        bpy.context.scene.world.color = shader_settings['world_color']
+        bpy.context.scene.world.use_nodes = shader_settings['world_use_nodes']
 
 
 # adding a modifier to all reciever objects that calculates the ratio between uv surface area and actual area
