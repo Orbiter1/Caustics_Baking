@@ -18,7 +18,7 @@ def set_uv_active_index(self, value):
 
 def update_source_active_object_index(self, context):
     if self.source_active_object_index >= 0:
-        obj = bpy.context.scene.objects[self.contributor_active_object_index]
+        obj = bpy.context.scene.objects[self.source_active_object_index]
         self.source_active_object_index = -1
         bpy.ops.object.select_all(action='DESELECT')
         obj.select_set(True)
@@ -36,7 +36,7 @@ def update_contributor_active_object_index(self, context):
 
 def update_shadow_active_object_index(self, context):
     if self.shadow_active_object_index >= 0:
-        obj = bpy.context.scene.objects[self.contributor_active_object_index]
+        obj = bpy.context.scene.objects[self.shadow_active_object_index]
         self.shadow_active_object_index = -1
         bpy.ops.object.select_all(action='DESELECT')
         obj.select_set(True)
@@ -45,7 +45,7 @@ def update_shadow_active_object_index(self, context):
 
 def update_reciever_active_object_index(self, context):
     if self.receiver_active_object_index >= 0:
-        obj = bpy.context.scene.objects[self.contributor_active_object_index]
+        obj = bpy.context.scene.objects[self.receiver_active_object_index]
         self.receiver_active_object_index = -1
         bpy.ops.object.select_all(action='DESELECT')
         obj.select_set(True)
