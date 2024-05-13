@@ -347,6 +347,7 @@ class CBRunBaking(bpy.types.Operator):
             # setting up the baking process
             cb_props.cb_running_baking = True
             setup_geo_node_groups()
+            setup_shader_node_group()
             build_collections()
             self.light_amount = len(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].all_objects)
             self.cams = auto_cam_placement(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].objects[self.light_count])
