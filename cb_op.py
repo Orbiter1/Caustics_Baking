@@ -10,7 +10,7 @@ from .cb_const import CAUSTIC_SHADOW_ATTRIBUTE, CAUSTIC_SOURCE_ATTRIBUTE, UV_SCA
 from .cb_functions import reset_compositor, reset_scene, scene_setup, setup_compositor, denoising, color_sampling, \
     is_debug, \
     auto_cam_placement, build_collections, remove_collections, cam_setup, unset_collection, set_collection
-from .cb_nodeGroups_v4 import setup_shader_node_group, setup_geo_node_groups
+from .cb_nodeGroups import setup_shader_node_group, setup_geo_node_groups
 
 
 class CBSetContributor(bpy.types.Operator):
@@ -27,7 +27,6 @@ class CBSetContributor(bpy.types.Operator):
                     del obj[CAUSTIC_RECEIVER_ATTRIBUTE]
                 if obj.get(CAUSTIC_SHADOW_ATTRIBUTE, None) is not None:
                     del obj[CAUSTIC_SHADOW_ATTRIBUTE]
-        setup_shader_node_group()
         return {"FINISHED"}
 
 
@@ -60,7 +59,6 @@ class CBSetBakingTarget(bpy.types.Operator):
                     del obj[CAUSTIC_CONTRIBUTOR_ATTRIBUTE]
                 if obj.get(CAUSTIC_SHADOW_ATTRIBUTE, None) is not None:
                     del obj[CAUSTIC_SHADOW_ATTRIBUTE]
-        setup_shader_node_group()
         return {"FINISHED"}
 
 
@@ -89,7 +87,6 @@ class CBSetShadowCaster(bpy.types.Operator):
                     del obj[CAUSTIC_RECEIVER_ATTRIBUTE]
                 if obj.get(CAUSTIC_CONTRIBUTOR_ATTRIBUTE, None) is not None:
                     del obj[CAUSTIC_CONTRIBUTOR_ATTRIBUTE]
-        setup_shader_node_group()
         return {"FINISHED"}
 
 
@@ -115,7 +112,6 @@ class CBSetCausticSource(bpy.types.Operator):
             if obj.type == 'LIGHT':
                 if ('POINT', 'SUN').__contains__(obj.data.type):
                     obj[CAUSTIC_SOURCE_ATTRIBUTE] = True
-        setup_shader_node_group()
         return {"FINISHED"}
 
 
@@ -129,6 +125,16 @@ class CBUnsetCausticSource(bpy.types.Operator):
             if obj.get(CAUSTIC_SOURCE_ATTRIBUTE, None) is not None:
                 del obj[CAUSTIC_SOURCE_ATTRIBUTE]
 
+        return {"FINISHED"}
+
+
+class CBImportShaderNode(bpy.types.Operator):
+    bl_idname = "cb.import_shadernode"
+    bl_label = "Import ShaderNode"
+    bl_description = "Imports the CB_Main_Caustics_Node"
+
+    def execute(self, context):
+        setup_shader_node_group()
         return {"FINISHED"}
 
 
@@ -198,10 +204,7 @@ class CBRunBaking(bpy.types.Operator):
                 else:
                     # starting the processing thread with the saved coordinates and the color information of the
                     # current render
-                    if (4, 0, 0) > bpy.app.version:
-                        fov = self.active_cam.data.cycles.fisheye_fov
-                    else:
-                        fov = self.active_cam.data.fisheye_fov
+                    fov = self.active_cam.data.fisheye_fov
                     thread = threading.Thread(target=compute_caustic_map,
                                               args=[self.target, self.coordinates,
                                                     np.array(bpy.data.images['Viewer Node'].pixels[:]).reshape(-1, 4),
@@ -224,10 +227,7 @@ class CBRunBaking(bpy.types.Operator):
                     color_sampling(0)
             else:
                 # process with only luminance, coordinate information is directly given to the processing function
-                if (4, 0, 0) > bpy.app.version:
-                    fov = self.active_cam.data.cycles.fisheye_fov
-                else:
-                    fov = self.active_cam.data.fisheye_fov
+                fov = self.active_cam.data.fisheye_fov
                 thread = threading.Thread(target=compute_caustic_map,
                                           args=[self.target,
                                                 np.array(bpy.data.images['Viewer Node'].pixels[:]).reshape(-1, 4),

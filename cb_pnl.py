@@ -5,7 +5,7 @@ from .cb_const import CAUSTIC_RECEIVER_ATTRIBUTE, CAUSTIC_CONTRIBUTOR_ATTRIBUTE,
     CAUSTIC_SOURCE_ATTRIBUTE
 
 from .cb_op import CBSetCausticSource, CBSetShadowCaster, CBUnSetShadowCaster, CBSetContributor, \
-    CBUnSetContributor, CBSetBakingTarget, CBUnSetBakingTarget, CBRunBaking, CBUnsetCausticSource
+    CBUnSetContributor, CBSetBakingTarget, CBUnSetBakingTarget, CBRunBaking, CBUnsetCausticSource, CBImportShaderNode
 
 
 class CB_PT_PanelModifyObject(Panel):
@@ -68,6 +68,16 @@ class CB_PT_PanelModifyObject(Panel):
                           cb_props, 'shadow_active_object_index')
 
 
+class CB_PT_PanelImportShaderNode(Panel):
+    bl_label = "Selection"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+    bl_category = "Caustics Baking"
+
+    def draw(self, context):
+        self.layout.operator(CBImportShaderNode.bl_idname)
+
+
 class CB_PT_PanelBakingSettings(Panel):
     bl_label = "Caustics Baking"
     bl_space_type = "PROPERTIES"
@@ -82,7 +92,6 @@ class CB_PT_PanelBakingSettings(Panel):
         caustic_source = 0
         caustic_contributor = False
         caustic_receiver = False
-        caustic_shadow = False
         for obj in bpy.context.scene.objects:
             if obj.get(CAUSTIC_SOURCE_ATTRIBUTE, False):
                 caustic_source += 1
@@ -90,32 +99,7 @@ class CB_PT_PanelBakingSettings(Panel):
                 caustic_contributor = True
             if obj.get(CAUSTIC_RECEIVER_ATTRIBUTE, False):
                 caustic_receiver = True
-            if obj.get(CAUSTIC_SHADOW_ATTRIBUTE, False):
-                caustic_shadow = True
 
-        col.label(text='Status:')
-        box = col.box()
-        if caustic_source:
-            if caustic_source == 1:
-                box.label(text='caustic source set', icon='CHECKMARK')
-            else:
-                box.label(text='multiple caustic sources', icon='CHECKMARK')
-        else:
-            box.label(text='no caustic source', icon='ERROR')
-        if caustic_contributor:
-            box.label(text='caustic contributor(s) set', icon='CHECKMARK')
-        else:
-            box.label(text='no caustic contributor', icon='ERROR')
-        if caustic_receiver:
-            box.label(text='caustic receiver(s) set', icon='CHECKMARK')
-        else:
-            box.label(text='no caustic receiver', icon='ERROR')
-        if caustic_shadow:
-            box.label(text='caustic shadow-caster(s) set', icon='CHECKMARK')
-        else:
-            box.label(text='no caustic shadow-caster', icon='INFO')
-
-        col.separator(factor=4)
         col.label(text="Baking Settings")
 
         col.prop(cb_props, 'sampleResMultiplier')

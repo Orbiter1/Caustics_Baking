@@ -167,10 +167,7 @@ def uv_scale_map_setup(scene):
         if obj.get(CAUSTIC_RECEIVER_ATTRIBUTE, False):
             modifier = obj.modifiers.new(name=UV_SCALE_MAP_NAME, type='NODES')
             modifier.node_group = bpy.data.node_groups[UV_SCALE_MAP_NAME]
-            if (4, 0, 0) > bpy.app.version:
-                inputs = modifier.node_group.inputs
-            else:
-                inputs = modifier.node_group.interface.items_tree
+            inputs = modifier.node_group.interface.items_tree
             for input in inputs:
                 if input.name == 'UV_Map':
                     identifier = input.identifier
@@ -307,10 +304,7 @@ def auto_cam_placement(light):
         modifier.node_group = bpy.data.node_groups[NODEGROUP_CLIPPING_PLANES_ORTHO]
     else:
         modifier.node_group = bpy.data.node_groups[NODEGROUP_CLIPPING_PLANES_PANO]
-    if (4, 0, 0) > bpy.app.version:
-        inputs = modifier.node_group.inputs
-    else:
-        inputs = modifier.node_group.interface.items_tree
+    inputs = modifier.node_group.interface.items_tree
     for input in inputs:
         if input.name == 'Light':
             modifier[input.identifier] = light
@@ -348,10 +342,7 @@ def auto_cam_placement(light):
             modifier.node_group = bpy.data.node_groups[NODEGROUP_CAM_PLACEMENT_ORTHO]
         else:
             modifier.node_group = bpy.data.node_groups[NODEGROUP_CAM_PLACEMENT_PANO]
-        if (4, 0, 0) > bpy.app.version:
-            inputs = modifier.node_group.inputs
-        else:
-            inputs = modifier.node_group.interface.items_tree
+        inputs = modifier.node_group.interface.items_tree
         for input in inputs:
             if input.name == 'Light':
                 modifier[input.identifier] = light
@@ -442,12 +433,8 @@ def auto_cam_placement(light):
             for i in range(2):
                 sensor = bpy.data.cameras.new('CB_Cam')
                 sensor.type = 'PANO'
-                if (4, 0, 0) > bpy.app.version:
-                    sensor.cycles.panorama_type = 'FISHEYE_EQUIDISTANT'
-                    sensor.cycles.fisheye_fov = math.pi
-                else:
-                    sensor.panorama_type = 'FISHEYE_EQUIDISTANT'
-                    sensor.fisheye_fov = math.pi
+                sensor.panorama_type = 'FISHEYE_EQUIDISTANT'
+                sensor.fisheye_fov = math.pi
                 sensor.clip_end = clip_end
                 sensor.clip_start = clip_start
                 sensor_object = bpy.data.objects.new('CB_Cam', sensor)
@@ -464,12 +451,8 @@ def auto_cam_placement(light):
                     attributes = cam_pos.evaluated_get(deps_graph).data.attributes
                     sensor = bpy.data.cameras.new('CB_Cam')
                     sensor.type = 'PANO'
-                    if (4, 0, 0) > bpy.app.version:
-                        sensor.cycles.panorama_type = 'FISHEYE_EQUIDISTANT'
-                        sensor.cycles.fisheye_fov = max(attributes['fov'].data[0].value, math.radians(10.0))
-                    else:
-                        sensor.panorama_type = 'FISHEYE_EQUIDISTANT'
-                        sensor.fisheye_fov = max(attributes['fov'].data[0].value, math.radians(10.0))
+                    sensor.panorama_type = 'FISHEYE_EQUIDISTANT'
+                    sensor.fisheye_fov = max(attributes['fov'].data[0].value, math.radians(10.0))
                     sensor.clip_end = clip_end
                     sensor.clip_start = clip_start
                     sensor_object = bpy.data.objects.new('CB_Cam', sensor)
