@@ -5,7 +5,7 @@ bl_info = {
     "author": "Benary",
     "description": "This Addon uses the Cycles Pathracing Engine to do a mixture of Lighttracing and Photon Cashing.",
     "blender": (4, 2, 0),
-    "version": (3, 1),
+    "version": (3, 2),
     "location": "View3D > Tools > Caustics Baking | Editor > Render > Caustics Baking",
     "warning": "",
     "category": "Render"
