@@ -342,6 +342,7 @@ class CBRunBaking(bpy.types.Operator):
         return {"PASS_THROUGH"}
 
     def invoke(self, context, event):
+        # TODO: Check if all relevant objects have a Material applied and inform the User
         cb_props = bpy.context.scene.cb_props
         if not cb_props.cb_running_baking:
             # setting up the baking process
