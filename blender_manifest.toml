@@ -6,8 +6,12 @@ name = "Caustics_Baking"
 tagline = "Caustics Baking with Cycles"
 maintainer = "Benary"
 type = "add-on"
+tags = ["Bake", "Lighting"]
 blender_version_min = "4.2.0"
 license = [
   "SPDX:GPL-3.0-or-later",
 ]
 website = "https://github.com/Orbiter1/Caustics_Baking"
+
+[permissions]
+files = "export images to disk"
