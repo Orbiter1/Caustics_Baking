@@ -83,11 +83,11 @@ class CB_PT_PanelBakingSettings(Panel):
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "render"
+    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
         cb_props = context.scene.cb_props
-        col = layout.column(align=True)
 
         caustic_source = 0
         caustic_contributor = False
@@ -100,50 +100,53 @@ class CB_PT_PanelBakingSettings(Panel):
             if obj.get(CAUSTIC_RECEIVER_ATTRIBUTE, False):
                 caustic_receiver = True
 
-        col.label(text="Baking Settings")
+        pan = layout.panel('Baking Settings')
+        pan[0].label(text="Baking Settings")
 
-        col.prop(cb_props, 'sampleResMultiplier')
-        col.prop(cb_props, "samples")
-        col.prop(cb_props, "denoise")
-        col.prop(cb_props, "colored")
-        if caustic_source <= 1:
-            col.prop(cb_props, 'bake_energy')
-        else:
-            col.label(text='bake energy active', icon='INFO')
+        if pan[1]:
+            col = pan[1].column()
+            col.prop(cb_props, 'sampleResMultiplier')
+            col.prop(cb_props, "samples")
+            col.prop(cb_props, "denoise")
+            col.prop(cb_props, "colored")
+            if caustic_source <= 1:
+                col.prop(cb_props, 'bake_energy')
+            else:
+                col.label(text='bake energy active', icon='INFO')
+            col.prop(cb_props, 'use_gpu')
 
-        col.separator(factor=4)
+        pan = layout.panel('Export Setting')
+        pan[0].label(text="Export Setting")
 
-        col.label(text='Export Setting')
-        col.prop(cb_props, 'useImage')
-        if not cb_props.useImage:
-            col.prop(cb_props, "textureRes")
-
-        col.separator(factor=2)
-        col.prop(cb_props, 'save_image_externally')
-        if cb_props.save_image_externally:
-            col.label(text="File Path")
-            col.prop(cb_props, "filePath", icon_only=True)
-
-        col.separator()
-        col.label(text="Image Name")
         targetImageError = False
-        if cb_props.useImage:
-            col.prop(cb_props, 'targetImage', icon_only=True)
-            if cb_props.targetImage is not None:
-                width, height = cb_props.targetImage.size
-                if width != height:
-                    col.label(text='target image has to be square', icon='ERROR')
+        if pan[1]:
+            col = pan[1].column()
+            col.prop(cb_props, 'useImage')
+            if not cb_props.useImage:
+                col.prop(cb_props, "textureRes")
+
+            if cb_props.useImage:
+                col.prop(cb_props, 'targetImage', icon_only=True)
+                if cb_props.targetImage is not None:
+                    width, height = cb_props.targetImage.size
+                    if width != height:
+                        col.label(text='target image has to be square', icon='ERROR')
+                        targetImageError = True
+                else:
                     targetImageError = True
             else:
-                targetImageError = True
-        else:
-            col.prop(cb_props, "imageName", icon_only=True)
+                split = col.split(factor=0.4)
+                split.alignment = 'RIGHT'
+                split.label(text='imageName')
+                split.prop(cb_props, "imageName", icon_only=True, icon='FILE_IMAGE')
 
-        col.separator(factor=4)
+            pan = layout.panel('save_image_externally')
+            pan[0].prop(cb_props, 'save_image_externally')
+            if pan[1] and cb_props.save_image_externally:
+                pan[1].prop(cb_props, "filePath", icon_only=True)
 
-        col.prop(cb_props, 'use_gpu')
         if caustic_source and caustic_contributor and caustic_receiver and not targetImageError:
-            col.operator(CBRunBaking.bl_idname)
+            layout.operator(CBRunBaking.bl_idname)
 
 
 class CB_UL_contributer_list(bpy.types.UIList):
