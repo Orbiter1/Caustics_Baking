@@ -262,7 +262,7 @@ class CBRunBaking(bpy.types.Operator):
         else:
             bpy.context.scene.cb_props.progress_indicator_text = f'Processing'
         bpy.context.scene.cb_props.progress_indicator = (
-                                                                    self.counter / self.samples / self.light_amount + self.light_count / self.light_amount) * 100
+                                                                self.counter / self.samples / self.light_amount + self.light_count / self.light_amount) * 100
         bpy.context.scene.cb_props.time_elapsed = str(datetime.now() - self.startTime)
         self.ui_updated = True
 
@@ -377,3 +377,21 @@ def info(header, context):
     layout.prop(context.scene.cb_props, "time_elapsed", text='time elapsed', emboss=False)
     layout.prop(context.scene.cb_props, "progress_indicator",
                 text=context.scene.cb_props.progress_indicator_text, slider=True)
+
+
+#### ------------------------------ REGISTRATION ------------------------------ ####
+
+classes = [
+    CBSetContributor, CBUnSetContributor, CBSetBakingTarget, CBUnSetBakingTarget, CBSetShadowCaster,
+    CBUnSetShadowCaster, CBSetCausticSource, CBRunBaking, CBUnsetCausticSource, CBImportShaderNode
+]
+
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)

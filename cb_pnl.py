@@ -8,6 +8,16 @@ from .cb_op import CBSetCausticSource, CBSetShadowCaster, CBUnSetShadowCaster, C
     CBUnSetContributor, CBSetBakingTarget, CBUnSetBakingTarget, CBRunBaking, CBUnsetCausticSource, CBImportShaderNode
 
 
+def update_sidebar_category(self, context):
+    try:
+        bpy.utils.unregister_class(CB_PT_PanelModifyObject)
+    except:
+        pass
+
+    CB_PT_PanelModifyObject.bl_category = self.sidebar_category
+    bpy.utils.register_class(CB_PT_PanelModifyObject)
+
+
 class CB_PT_PanelModifyObject(Panel):
     bl_label = "Selection"
     bl_space_type = "VIEW_3D"
@@ -180,6 +190,7 @@ class CB_UL_sources_list(bpy.types.UIList):
             ordered.append(i)
         return filtered, ordered
 
+
 class CB_UL_recievers_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
@@ -195,6 +206,7 @@ class CB_UL_recievers_list(bpy.types.UIList):
             ordered.append(i)
         return filtered, ordered
 
+
 class CB_UL_shadowcasters_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
@@ -209,3 +221,24 @@ class CB_UL_shadowcasters_list(bpy.types.UIList):
                 filtered[i] &= ~self.bitflag_filter_item
             ordered.append(i)
         return filtered, ordered
+
+
+#### ------------------------------ REGISTRATION ------------------------------ ####
+
+classes = [
+    CB_PT_PanelModifyObject, CB_PT_PanelBakingSettings, CB_UL_contributer_list, CB_UL_sources_list,
+    CB_UL_recievers_list, CB_UL_shadowcasters_list, CB_PT_PanelImportShaderNode
+]
+
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+    prefs = bpy.context.preferences.addons[__package__].preferences
+    update_sidebar_category(prefs, bpy.context)
+
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)

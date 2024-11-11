@@ -107,3 +107,22 @@ class CB_Props(bpy.types.PropertyGroup):
     progress_indicator_text: bpy.props.StringProperty(default="Progress")
     time_elapsed: bpy.props.StringProperty(default='0')
     cb_running_baking: bpy.props.BoolProperty(default=False)
+
+
+#### ------------------------------ REGISTRATION ------------------------------ ####
+
+classes = [
+    CB_Props,
+]
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+    bpy.types.Scene.cb_props = bpy.props.PointerProperty(type=CB_Props)
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
+
+    del bpy.types.Scene.cb_props
