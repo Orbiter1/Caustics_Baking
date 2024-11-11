@@ -14,14 +14,14 @@ bl_info = {
 from .cb_op import CBSetContributor, CBUnSetContributor, CBSetBakingTarget, CBUnSetBakingTarget, \
     CBSetShadowCaster, CBUnSetShadowCaster, CBSetCausticSource, CBRunBaking, CBUnsetCausticSource, CBImportShaderNode
 from .cb_pnl import CB_PT_PanelModifyObject, CB_PT_PanelBakingSettings, \
-    Contributor_UL_List, Sources_UL_List, Recievers_UL_List, ShadowCasters_UL_List, CB_PT_PanelImportShaderNode
+    CB_UL_contributer_list, CB_UL_sources_list, CB_UL_recievers_list, CB_UL_shadowcasters_list, CB_PT_PanelImportShaderNode
 from .cb_properties import CB_Props
 
 classes = (
     CB_Props, CB_PT_PanelModifyObject, CB_PT_PanelBakingSettings, CB_PT_PanelImportShaderNode, CBSetContributor,
     CBUnSetContributor, CBSetBakingTarget, CBUnSetBakingTarget, CBSetShadowCaster,
-    CBUnSetShadowCaster, CBSetCausticSource, CBRunBaking, CBUnsetCausticSource, Contributor_UL_List, Sources_UL_List,
-    Recievers_UL_List, ShadowCasters_UL_List, CBImportShaderNode)
+    CBUnSetShadowCaster, CBSetCausticSource, CBRunBaking, CBUnsetCausticSource, CB_UL_contributer_list, CB_UL_sources_list,
+    CB_UL_recievers_list, CB_UL_shadowcasters_list, CBImportShaderNode)
 
 
 def register():

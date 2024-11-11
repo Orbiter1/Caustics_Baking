@@ -55,16 +55,16 @@ class CB_PT_PanelModifyObject(Panel):
                     col.operator(CBUnsetCausticSource.bl_idname)
         col.separator(factor=4)
         col.label(text='sources')
-        col.template_list(Sources_UL_List.__name__, 'sources', bpy.context.scene, 'objects',
+        col.template_list(CB_UL_sources_list.__name__, 'sources', bpy.context.scene, 'objects',
                           cb_props, 'source_active_object_index')
         col.label(text='contributors')
-        col.template_list(Contributor_UL_List.__name__, 'contributors', bpy.context.scene, 'objects',
+        col.template_list(CB_UL_contributer_list.__name__, 'contributors', bpy.context.scene, 'objects',
                           cb_props, 'contributor_active_object_index')
         col.label(text='receivers')
-        col.template_list(Recievers_UL_List.__name__, 'receivers', bpy.context.scene, 'objects',
+        col.template_list(CB_UL_recievers_list.__name__, 'receivers', bpy.context.scene, 'objects',
                           cb_props, 'receiver_active_object_index')
         col.label(text='shadow-casters')
-        col.template_list(ShadowCasters_UL_List.__name__, 'shadow-casters', bpy.context.scene, 'objects',
+        col.template_list(CB_UL_shadowcasters_list.__name__, 'shadow-casters', bpy.context.scene, 'objects',
                           cb_props, 'shadow_active_object_index')
 
 
@@ -146,7 +146,7 @@ class CB_PT_PanelBakingSettings(Panel):
             col.operator(CBRunBaking.bl_idname)
 
 
-class Contributor_UL_List(bpy.types.UIList):
+class CB_UL_contributer_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(item, "name", text="", emboss=False, icon_value=layout.icon(item.data))
@@ -162,7 +162,7 @@ class Contributor_UL_List(bpy.types.UIList):
         return filtered, ordered
 
 
-class Sources_UL_List(bpy.types.UIList):
+class CB_UL_sources_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(item, "name", text="", emboss=False, icon_value=layout.icon(item.data))
@@ -177,7 +177,7 @@ class Sources_UL_List(bpy.types.UIList):
             ordered.append(i)
         return filtered, ordered
 
-class Recievers_UL_List(bpy.types.UIList):
+class CB_UL_recievers_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(item, "name", text="", emboss=False, icon_value=layout.icon(item.data))
@@ -192,7 +192,7 @@ class Recievers_UL_List(bpy.types.UIList):
             ordered.append(i)
         return filtered, ordered
 
-class ShadowCasters_UL_List(bpy.types.UIList):
+class CB_UL_shadowcasters_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(item, "name", text="", emboss=False, icon_value=layout.icon(item.data))
