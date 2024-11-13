@@ -343,13 +343,16 @@ class CBRunBaking(bpy.types.Operator):
 
     def invoke(self, context, event):
         missing_material = False
+        message = 'The following objects are missing a material: '
         for obj in bpy.context.scene.objects:
             if obj.get('cb_contributor', False) or obj.get('cb_receiver', False) or obj.get('cb_shadow_caster', False):
                 if obj.active_material == None:
                     missing_material = True
+                    message += obj.name+', '
         cb_props = bpy.context.scene.cb_props
-        # TODO: Inform missing Material
-        if not cb_props.cb_running_baking and not missing_material:
+        if missing_material:
+            show_message_box(message=message, title='Missing material detected', icon='ERROR')
+        elif not cb_props.cb_running_baking:
             # setting up the baking process
             cb_props.cb_running_baking = True
             setup_geo_node_groups()
@@ -382,6 +385,13 @@ def info(header, context):
     layout.prop(context.scene.cb_props, "time_elapsed", text='time elapsed', emboss=False)
     layout.prop(context.scene.cb_props, "progress_indicator",
                 text=context.scene.cb_props.progress_indicator_text, slider=True)
+
+
+def show_message_box(message="", title="Message Box", icon='INFO'):
+    def draw(self, context):
+        self.layout.label(text=message)
+
+    bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
 
 
 #### ------------------------------ REGISTRATION ------------------------------ ####
