@@ -28,54 +28,44 @@ class CB_PT_PanelModifyObject(Panel):
         cb_props = context.scene.cb_props
         layout = self.layout
         col = layout.column(align=True)
-        box = col.box()
+        active = bpy.context.active_object
+        if active:
+            if active.type == 'LIGHT':
+                col.prop(active, 'cb_source')
+            if ('MESH', 'CURVE', 'FONT', 'META', 'SURFACE').__contains__(active.type):
+                col.prop(active, 'cb_contributor')
+            if active.type == 'MESH':
+                pan = col.panel('cb_receiver')
+                pan[0].prop(active, 'cb_receiver')
+                if pan[1] and active.cb_receiver:
+                    pan[1].template_list("UI_UL_list", "uvmaps", context.object.data, "uv_layers", active, "cb_active_uv")
+            if ('MESH', 'CURVE', 'FONT', 'META', 'SURFACE').__contains__(active.type):
+                col.prop(active, 'cb_shadow_caster')
 
-        if bpy.context.active_object.type != 'LIGHT':
-            if bpy.context.active_object.get(CAUSTIC_CONTRIBUTOR_ATTRIBUTE, 0) == 1:
-                col.operator(CBUnSetContributor.bl_idname)
-                box.label(text="caustic contributor")
-
-            if bpy.context.active_object.get(CAUSTIC_SHADOW_ATTRIBUTE, 0) == 1:
-                col.operator(CBUnSetShadowCaster.bl_idname)
-                box.label(text="caustic shadow-caster")
-
-            if bpy.context.active_object.get(CAUSTIC_RECEIVER_ATTRIBUTE, 0) == 1:
-                col.operator(CBUnSetBakingTarget.bl_idname)
-                box.label(text="caustic receiver")
-                col.template_list("UI_UL_list", "uvmaps", context.object.data, "uv_layers", cb_props, "uv_active_index")
-
-            col.separator()
-
-            if bpy.context.active_object.get(CAUSTIC_CONTRIBUTOR_ATTRIBUTE, 0) == 0:
-                col.operator(CBSetContributor.bl_idname)
-            if bpy.context.active_object.get(CAUSTIC_RECEIVER_ATTRIBUTE, 0) == 0:
-                col.operator(CBSetBakingTarget.bl_idname)
-            if bpy.context.active_object.get(CAUSTIC_SHADOW_ATTRIBUTE, 0) == 0:
-                col.operator(CBSetShadowCaster.bl_idname)
-
-        else:
-            if ('AREA', 'SPOT').__contains__(bpy.context.object.data.type):
-                box.label(text="Area and Spot lights are not supported")
-            else:
-                if bpy.context.active_object.get(CAUSTIC_SOURCE_ATTRIBUTE, None) is None:
-                    col.separator()
-                    col.operator(CBSetCausticSource.bl_idname)
-                else:
-                    box.label(text="active caustic sensor")
-                    col.operator(CBUnsetCausticSource.bl_idname)
-        col.separator(factor=4)
-        col.label(text='sources')
-        col.template_list(CB_UL_sources_list.__name__, 'sources', bpy.context.scene, 'objects',
-                          cb_props, 'source_active_object_index')
-        col.label(text='contributors')
-        col.template_list(CB_UL_contributer_list.__name__, 'contributors', bpy.context.scene, 'objects',
-                          cb_props, 'contributor_active_object_index')
-        col.label(text='receivers')
-        col.template_list(CB_UL_recievers_list.__name__, 'receivers', bpy.context.scene, 'objects',
-                          cb_props, 'receiver_active_object_index')
-        col.label(text='shadow-casters')
-        col.template_list(CB_UL_shadowcasters_list.__name__, 'shadow-casters', bpy.context.scene, 'objects',
-                          cb_props, 'shadow_active_object_index')
+        pan = col.panel('objectOverview')
+        pan[0].label(text='Object Overview')
+        if pan[1]:
+            col = pan[1].column()
+            pan = col.panel('sources')
+            pan[0].label(text='sources')
+            if pan[1]:
+                pan[1].template_list(CB_UL_sources_list.__name__, 'sources', bpy.context.scene, 'objects',
+                              cb_props, 'source_active_object_index')
+            pan = col.panel('contributors')
+            pan[0].label(text='contributors')
+            if pan[1]:
+                pan[1].template_list(CB_UL_contributer_list.__name__, 'contributors', bpy.context.scene, 'objects',
+                              cb_props, 'contributor_active_object_index')
+            pan = col.panel('receivers')
+            pan[0].label(text='receivers')
+            if pan[1]:
+                pan[1].template_list(CB_UL_recievers_list.__name__, 'receivers', bpy.context.scene, 'objects',
+                              cb_props, 'receiver_active_object_index')
+            pan = col.panel('shadow-casters')
+            pan[0].label(text='shadow-casters')
+            if pan[1]:
+                pan[1].template_list(CB_UL_shadowcasters_list.__name__, 'shadow-casters', bpy.context.scene, 'objects',
+                              cb_props, 'shadow_active_object_index')
 
 
 class CB_PT_PanelImportShaderNode(Panel):
@@ -169,7 +159,7 @@ class CB_UL_contributer_list(bpy.types.UIList):
         filtered = [self.bitflag_filter_item] * len(items)
         ordered = []
         for i, item in enumerate(items):
-            if not item.get(CAUSTIC_CONTRIBUTOR_ATTRIBUTE, 0):
+            if not item.get('cb_contributor', False):
                 filtered[i] &= ~self.bitflag_filter_item
             ordered.append(i)
         return filtered, ordered
@@ -185,7 +175,7 @@ class CB_UL_sources_list(bpy.types.UIList):
         filtered = [self.bitflag_filter_item] * len(items)
         ordered = []
         for i, item in enumerate(items):
-            if not item.get(CAUSTIC_SOURCE_ATTRIBUTE, 0):
+            if not item.get('cb_source', False):
                 filtered[i] &= ~self.bitflag_filter_item
             ordered.append(i)
         return filtered, ordered
@@ -201,7 +191,7 @@ class CB_UL_recievers_list(bpy.types.UIList):
         filtered = [self.bitflag_filter_item] * len(items)
         ordered = []
         for i, item in enumerate(items):
-            if not item.get(CAUSTIC_RECEIVER_ATTRIBUTE, 0):
+            if not item.get(CAUSTIC_RECEIVER_ATTRIBUTE, False):
                 filtered[i] &= ~self.bitflag_filter_item
             ordered.append(i)
         return filtered, ordered
@@ -217,7 +207,7 @@ class CB_UL_shadowcasters_list(bpy.types.UIList):
         filtered = [self.bitflag_filter_item] * len(items)
         ordered = []
         for i, item in enumerate(items):
-            if not item.get(CAUSTIC_SHADOW_ATTRIBUTE, 0):
+            if not item.get('cb_shadow_caster', False):
                 filtered[i] &= ~self.bitflag_filter_item
             ordered.append(i)
         return filtered, ordered

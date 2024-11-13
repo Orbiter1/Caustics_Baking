@@ -21,7 +21,7 @@ class CBSetContributor(bpy.types.Operator):
     def execute(self, context):
         for obj in bpy.context.selected_objects:
             if ('MESH', 'CURVE', 'LIGHT', 'FONT', 'META', 'SURFACE').__contains__(obj.type):
-                obj[CAUSTIC_CONTRIBUTOR_ATTRIBUTE] = 1
+                obj[CAUSTIC_CONTRIBUTOR_ATTRIBUTE] = True
 
                 if obj.get(CAUSTIC_RECEIVER_ATTRIBUTE, None) is not None:
                     del obj[CAUSTIC_RECEIVER_ATTRIBUTE]
@@ -50,7 +50,7 @@ class CBSetBakingTarget(bpy.types.Operator):
     def execute(self, context):
         for obj in bpy.context.selected_objects:
             if ('MESH').__contains__(obj.type):
-                obj[CAUSTIC_RECEIVER_ATTRIBUTE] = 1
+                obj[CAUSTIC_RECEIVER_ATTRIBUTE] = True
                 if obj.get(UV_SCALE_MAP_NAME, None) is None:
                     obj[UV_SCALE_MAP_NAME] = obj.data.uv_layers[0]
 
@@ -82,7 +82,7 @@ class CBSetShadowCaster(bpy.types.Operator):
     def execute(self, context):
         for obj in bpy.context.selected_objects:
             if ('MESH', 'CURVE', 'LIGHT', 'FONT', 'META', 'SURFACE').__contains__(obj.type):
-                obj[CAUSTIC_SHADOW_ATTRIBUTE] = 1
+                obj[CAUSTIC_SHADOW_ATTRIBUTE] = True
                 if obj.get(CAUSTIC_RECEIVER_ATTRIBUTE, None) is not None:
                     del obj[CAUSTIC_RECEIVER_ATTRIBUTE]
                 if obj.get(CAUSTIC_CONTRIBUTOR_ATTRIBUTE, None) is not None:
@@ -342,9 +342,14 @@ class CBRunBaking(bpy.types.Operator):
         return {"PASS_THROUGH"}
 
     def invoke(self, context, event):
-        # TODO: Check if all relevant objects have a Material applied and inform the User
+        missing_material = False
+        for obj in bpy.context.scene.objects:
+            if obj.get('cb_contributor', False) or obj.get('cb_receiver', False) or obj.get('cb_shadow_caster', False):
+                if obj.active_material == None:
+                    missing_material = True
         cb_props = bpy.context.scene.cb_props
-        if not cb_props.cb_running_baking:
+        # TODO: Inform missing Material
+        if not cb_props.cb_running_baking and not missing_material:
             # setting up the baking process
             cb_props.cb_running_baking = True
             setup_geo_node_groups()

@@ -171,7 +171,7 @@ def uv_scale_map_setup(scene):
             for input in inputs:
                 if input.name == 'UV_Map':
                     identifier = input.identifier
-            modifier[f"{identifier}_attribute_name"] = obj[UV_SCALE_MAP_NAME]
+            modifier[f"{identifier}_attribute_name"] = obj.data.uv_layers[obj.cb_active_uv].name
 
 
 # removing the UV scale map modifier from all objects
@@ -270,7 +270,7 @@ def build_collection(name):
     if not bpy.data.collections.__contains__(name):
         bpy.data.collections.new(name)
     for object in bpy.context.scene.objects:
-        if object.get(name, 0):
+        if object.get(name, False):
             set_collection(name, object)
 
 
