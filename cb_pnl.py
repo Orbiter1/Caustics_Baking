@@ -11,11 +11,14 @@ from .cb_op import CBSetCausticSource, CBSetShadowCaster, CBUnSetShadowCaster, C
 def update_sidebar_category(self, context):
     try:
         bpy.utils.unregister_class(CB_PT_PanelModifyObject)
+        bpy.utils.unregister_class(CB_PT_PanelImportShaderNode)
     except:
         pass
 
     CB_PT_PanelModifyObject.bl_category = self.sidebar_category
     bpy.utils.register_class(CB_PT_PanelModifyObject)
+    CB_PT_PanelImportShaderNode.bl_category = self.sidebar_category
+    bpy.utils.register_class(CB_PT_PanelImportShaderNode)
 
 
 class CB_PT_PanelModifyObject(Panel):
