@@ -6,7 +6,7 @@ name = "Caustics_Baking"
 tagline = "Caustics Baking with Cycles"
 maintainer = "Benary"
 type = "add-on"
-tags = ["Bake", "Lighting"]
+tags = ["Bake", "Lighting", "Caustics"]
 blender_version_min = "4.2.0"
 license = [
   "SPDX:GPL-3.0-or-later",
