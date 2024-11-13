@@ -38,7 +38,8 @@ class CB_PT_PanelModifyObject(Panel):
                 pan = col.panel('cb_receiver')
                 pan[0].prop(active, 'cb_receiver')
                 if pan[1] and active.cb_receiver:
-                    pan[1].template_list("UI_UL_list", "uvmaps", context.object.data, "uv_layers", active, "cb_active_uv")
+                    pan[1].template_list("UI_UL_list", "uvmaps", context.object.data, "uv_layers", active,
+                                         "cb_active_uv")
             if ('MESH', 'CURVE', 'FONT', 'META', 'SURFACE').__contains__(active.type):
                 col.prop(active, 'cb_shadow_caster')
 
@@ -50,22 +51,22 @@ class CB_PT_PanelModifyObject(Panel):
             pan[0].label(text='sources')
             if pan[1]:
                 pan[1].template_list(CB_UL_sources_list.__name__, 'sources', bpy.context.scene, 'objects',
-                              cb_props, 'source_active_object_index')
+                                     cb_props, 'source_active_object_index')
             pan = col.panel('contributors')
             pan[0].label(text='contributors')
             if pan[1]:
                 pan[1].template_list(CB_UL_contributer_list.__name__, 'contributors', bpy.context.scene, 'objects',
-                              cb_props, 'contributor_active_object_index')
+                                     cb_props, 'contributor_active_object_index')
             pan = col.panel('receivers')
             pan[0].label(text='receivers')
             if pan[1]:
                 pan[1].template_list(CB_UL_recievers_list.__name__, 'receivers', bpy.context.scene, 'objects',
-                              cb_props, 'receiver_active_object_index')
+                                     cb_props, 'receiver_active_object_index')
             pan = col.panel('shadow-casters')
             pan[0].label(text='shadow-casters')
             if pan[1]:
                 pan[1].template_list(CB_UL_shadowcasters_list.__name__, 'shadow-casters', bpy.context.scene, 'objects',
-                              cb_props, 'shadow_active_object_index')
+                                     cb_props, 'shadow_active_object_index')
 
 
 class CB_PT_PanelImportShaderNode(Panel):
