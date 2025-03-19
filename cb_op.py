@@ -197,7 +197,7 @@ class CBRunBaking(bpy.types.Operator):
                         color_sampling(1)
                     else:
                         # with no valid coordinates found all remaining samples for the camera are skipped
-                        scene.cycles.sample_offset = scene.cycles.sample_offset + 1
+                        scene.cycles.seed = scene.cycles.seed + 1
                         self.coordinates = None
                         self.counter += self.active_cam['remaining']
                         self.active_cam['remaining'] = 0
@@ -218,7 +218,7 @@ class CBRunBaking(bpy.types.Operator):
                     thread.start()
 
                     # switching to a new random sampling position within every pixel
-                    scene.cycles.sample_offset = scene.cycles.sample_offset + 1
+                    scene.cycles.seed = scene.cycles.seed + 1
 
                     # resetting for next sample
                     self.coordinates = None
@@ -241,7 +241,7 @@ class CBRunBaking(bpy.types.Operator):
                 thread.start()
 
                 # resetting for next sample
-                scene.cycles.sample_offset = scene.cycles.sample_offset + 1
+                scene.cycles.seed = scene.cycles.seed + 1
                 if (np.array(bpy.data.images['Viewer Node'].pixels[:]).reshape(-1, 4)[:, 2] > 0).any():
                     self.active_cam['remaining'] -= 1
                     self.counter += 1
