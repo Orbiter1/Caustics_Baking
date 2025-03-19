@@ -143,7 +143,8 @@ class CBRunBaking(bpy.types.Operator):
     bl_label = "Run Caustics Bake"
     bl_description = "starts the baking process"
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.ui_updated = False
         self.light_amount = None
         self.light_count = 0
