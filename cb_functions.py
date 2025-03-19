@@ -32,6 +32,10 @@ def reset_scene(scene, scene_settings):
 # Setting render settings to the correct values for the baking Process and returning original settings
 def set_render_settings(scene):
     cb_props = scene.cb_props
+    if (4, 4, 0) <= bpy.app.version:
+        use_sample_subset = scene.cycles.use_sample_subset
+    else:
+        use_sample_subset = False
     render_settings = {
         'engine': scene.render.engine,
         'resolution_x': scene.render.resolution_x,
@@ -44,7 +48,9 @@ def set_render_settings(scene):
         'device': scene.cycles.device,
         'samples': scene.cycles.samples,
         'use_denoising': scene.cycles.use_denoising,
+        'use_sample_subset': use_sample_subset,
         'sample_offset': scene.cycles.sample_offset,
+        'seed': scene.cycles.seed,
         'sample_clamp_direct': scene.cycles.sample_clamp_direct,
         'sample_clamp_indirect': scene.cycles.sample_clamp_indirect
     }
@@ -58,8 +64,12 @@ def set_render_settings(scene):
         scene.cycles.device = "GPU"
     else:
         scene.cycles.device = "CPU"
-    scene.cycles.samples = 1
     scene.cycles.use_denoising = False
+    if (4, 4, 0) > bpy.app.version:
+        scene.cycles.samples = 1
+    else:
+        scene.cycles.samples = 2
+        scene.cycles.use_sample_subset = True
     scene.cycles.sample_offset = 1
     scene.cycles.sample_clamp_direct = 0
     scene.cycles.sample_clamp_indirect = 0
@@ -84,6 +94,9 @@ def reset_render_settings(scene, render_settings):
     scene.cycles.sample_offset = render_settings['sample_offset']
     scene.cycles.sample_clamp_direct = render_settings['sample_clamp_direct']
     scene.cycles.sample_clamp_indirect = render_settings['sample_clamp_indirect']
+    scene.cycles.seed = render_settings['seed']
+    if (4, 4, 0) <= bpy.app.version:
+        scene.cycles.use_sample_subset = render_settings['use_sample_subset']
 
     scene.camera = render_settings['camera']
 
