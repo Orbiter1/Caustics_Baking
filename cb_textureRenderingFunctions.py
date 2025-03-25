@@ -3,7 +3,7 @@ import math
 import numpy as np
 
 
-def compute_caustic_map(target_map, coordinates, colors, texture_res, colored, index, pano, sample_res, sampler_fov,
+def compute_caustic_map(target_map, coordinates, colors, texture_res, colored, pano, sample_res, sampler_fov,
                         normalization, debug):
     # data cleanup
     valid = (coordinates[:, 2] > 0) & (coordinates[:, 0] > 0) & (coordinates[:, 0] < 1) & (coordinates[:, 1] > 0) & (

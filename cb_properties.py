@@ -51,6 +51,22 @@ def update_reciever_active_object_index(self, context):
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
 
+def update_sequence_start(self, context):
+    if self.sequence_start > self.sequence_end:
+        self.sequence_end = self.sequence_start
+
+def update_sequence_end(self, context):
+    if self.sequence_end < self.sequence_start:
+        self.sequence_start = self.sequence_end
+
+def update_is_sequence(self, context):
+    if self.is_sequence:
+        self.save_image_externally = True
+
+def update_save_image_externally(self, context):
+    if not self.save_image_externally:
+        self.is_sequence = False
+
 
 class CB_Scene_Props(bpy.types.PropertyGroup):
     textureRes: bpy.props.IntProperty(name="Texture Res", default=2048, min=1,
@@ -68,19 +84,46 @@ class CB_Scene_Props(bpy.types.PropertyGroup):
                                                  description='base resolution is 1024x1024')
 
     save_image_externally: bpy.props.BoolProperty(name='save externally', default=False,
-                                                  description='automatically saves the image to the given filepath')
+                                                  description='automatically saves the image to the given filepath',
+                                                  update=update_save_image_externally)
     filePath: bpy.props.StringProperty(name="File Path", default='//cb\\', subtype='DIR_PATH')
+    image_quality: bpy.props.IntProperty(name="Image Quality", default=90, min=0, max=100, subtype='PERCENTAGE',
+                                         description='quality for lossy compression')
     useImage: bpy.props.BoolProperty(name='use existing Image', default=False,
                                      description='lets you select an existing image as baking target')
     imageName: bpy.props.StringProperty(name="Image Name", default="cb", subtype='FILE_NAME')
     targetImage: bpy.props.PointerProperty(name='Baking Target', type=bpy.types.Image)
+    is_sequence: bpy.props.BoolProperty(
+        name='Sequence',
+        default=False,
+        description='Baking multiple Frames. Useful for Animated Objects',
+        update=update_is_sequence
+    )
+    overwrite_range: bpy.props.BoolProperty(
+        name='Overwrite Range',
+        default=False,
+        description='Lets you set a custom range instead of the scenes playback/rendering range.'
+    )
+    sequence_start: bpy.props.IntProperty(
+        name='Sequence Start',
+        default=1,
+        min=0,
+        description='First frame of the sequence',
+        update=update_sequence_start
+    )
+    sequence_end: bpy.props.IntProperty(
+        name='Sequence End',
+        default=250,
+        min=0,
+        description='Last frame of the sequence',
+        update=update_sequence_end
+    )
     uv_active_index: bpy.props.IntProperty(
         min=-1,
         default=-1,
         get=get_uv_active_index,
         set=set_uv_active_index
     )
-
     source_active_object_index: bpy.props.IntProperty(
         default=-1,
         update=update_source_active_object_index
@@ -97,7 +140,6 @@ class CB_Scene_Props(bpy.types.PropertyGroup):
         default=-1,
         update=update_reciever_active_object_index
     )
-
     progress_indicator: bpy.props.FloatProperty(
         default=0,
         subtype='PERCENTAGE',
@@ -105,7 +147,9 @@ class CB_Scene_Props(bpy.types.PropertyGroup):
         min=0,
         max=100)
     progress_indicator_text: bpy.props.StringProperty(default="Progress")
+    progress_information_text: bpy.props.StringProperty(default="Progress")
     time_elapsed: bpy.props.StringProperty(default='0')
+    time_last: bpy.props.StringProperty(default='0')
     cb_running_baking: bpy.props.BoolProperty(default=False)
 
 
@@ -142,7 +186,6 @@ def update_source(self, context):
     if self.cb_source:
         if self.type != 'LIGHT':
             self.cb_source = False
-
 
 
 #### ------------------------------ REGISTRATION ------------------------------ ####

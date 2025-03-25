@@ -131,12 +131,7 @@ class CB_PT_PanelBakingSettings(Panel):
 
             if cb_props.useImage:
                 col.prop(cb_props, 'targetImage', icon_only=True)
-                if cb_props.targetImage is not None:
-                    width, height = cb_props.targetImage.size
-                    if width != height:
-                        col.label(text='target image has to be square', icon='ERROR')
-                        targetImageError = True
-                else:
+                if cb_props.targetImage is None:
                     targetImageError = True
             else:
                 split = col.split(factor=0.4)
@@ -147,9 +142,20 @@ class CB_PT_PanelBakingSettings(Panel):
             pan = layout.panel('save_image_externally')
             pan[0].prop(cb_props, 'save_image_externally')
             if pan[1] and cb_props.save_image_externally:
-                pan[1].prop(cb_props, "filePath", icon_only=True)
+                col = pan[1].column()
+                col.prop(cb_props, "filePath", icon_only=True)
+                col.prop(cb_props, "image_quality")
 
-        if caustic_source and caustic_contributor and caustic_receiver and not targetImageError:
+
+        pan = layout.panel('sequence')
+        pan[0].prop(cb_props, 'is_sequence')
+        if pan[1] and cb_props.is_sequence:
+            col = pan[1].column()
+            col.prop(cb_props, 'overwrite_range')
+            if cb_props.overwrite_range:
+                col.prop(cb_props, 'sequence_start')
+                col.prop(cb_props, 'sequence_end')
+        if not targetImageError:
             layout.operator(CBRunBaking.bl_idname)
 
 

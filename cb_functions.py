@@ -14,7 +14,8 @@ import numpy as np
 def scene_setup(scene):
     scene_settings = {
         'render_settings': set_render_settings(scene),
-        'shader_settings': shader_setup()
+        'shader_settings': shader_setup(),
+        'frame_current': scene.frame_current,
     }
     visibility_setup(scene)
     uv_scale_map_setup(scene)
@@ -23,6 +24,7 @@ def scene_setup(scene):
 
 # Resetting the Scene to its original state
 def reset_scene(scene, scene_settings):
+    scene.frame_current = scene_settings['frame_current']
     reset_render_settings(scene, scene_settings['render_settings'])
     reset_visibility(scene)
     shader_reset(scene_settings['shader_settings'])
@@ -52,7 +54,11 @@ def set_render_settings(scene):
         'sample_offset': scene.cycles.sample_offset,
         'seed': scene.cycles.seed,
         'sample_clamp_direct': scene.cycles.sample_clamp_direct,
-        'sample_clamp_indirect': scene.cycles.sample_clamp_indirect
+        'sample_clamp_indirect': scene.cycles.sample_clamp_indirect,
+        'image_settings_file_format': scene.render.image_settings.file_format,
+        'image_settings_color_mode': scene.render.image_settings.color_mode,
+        'image_settings_color_depth': scene.render.image_settings.color_depth,
+        'image_settings_exr_codec': scene.render.image_settings.exr_codec,
     }
 
     scene.render.engine = 'CYCLES'
@@ -73,6 +79,11 @@ def set_render_settings(scene):
     scene.cycles.sample_offset = 1
     scene.cycles.sample_clamp_direct = 0
     scene.cycles.sample_clamp_indirect = 0
+
+    scene.render.image_settings.file_format = 'OPEN_EXR'
+    scene.render.image_settings.color_mode = 'RGB'
+    scene.render.image_settings.color_depth = '32'
+    scene.render.image_settings.exr_codec = 'DWAA'
 
     return render_settings
 
@@ -99,6 +110,11 @@ def reset_render_settings(scene, render_settings):
         scene.cycles.use_sample_subset = render_settings['use_sample_subset']
 
     scene.camera = render_settings['camera']
+
+    scene.render.image_settings.file_format = render_settings['image_settings_file_format']
+    scene.render.image_settings.color_mode = render_settings['image_settings_color_mode']
+    scene.render.image_settings.color_depth = render_settings['image_settings_color_depth']
+    scene.render.image_settings.exr_codec = render_settings['image_settings_exr_codec']
 
 
 # Hiding all Objects that are not needed and marking them
@@ -282,18 +298,23 @@ def build_collections():
 def build_collection(name):
     if not bpy.data.collections.__contains__(name):
         bpy.data.collections.new(name)
-    for object in bpy.context.scene.objects:
-        if object.get(name, False):
-            set_collection(name, object)
+    for obj in bpy.data.collections[name].all_objects:
+        if not obj.get(name, False):
+            unset_collection(name, obj)
+    for obj in bpy.context.scene.objects:
+        if obj.get(name, False):
+            set_collection(name, obj)
 
 
 # safely deletes collection and all links to it
 def remove_collection(name):
-    for obj in bpy.data.collections[name].all_objects:
+    objs = bpy.data.collections[name].all_objects
+    for obj in objs:
         if obj is not None:
             if obj.type == 'CAMERA':
-                bpy.context.scene.collection.objects.unlink(obj)
-            unset_collection(name, obj)
+                bpy.data.objects.remove(obj, do_unlink=True)
+            else:
+                unset_collection(name, obj)
     bpy.data.collections.remove(bpy.data.collections[name])
 
 
@@ -491,17 +512,18 @@ def auto_cam_placement(light):
     # adjusting the number of samples for each camera to ensure a similar amount of samples per area for all cameras
     lowest_density = cams[0]['sample_density']
     for cam in cams:
-        cam['remaining'] = 0
+        cam['samples'] = 0
         if cam['sample_density'] < lowest_density:
             lowest_density = cam['sample_density']
     for cam in cams:
         remaining = lowest_density * (bpy.context.scene.cb_props.samples - 1)
         while remaining > -.5 * lowest_density:
-            cam['remaining'] += 1
+            cam['samples'] += 1
             remaining -= cam['sample_density']
     # adjusting the normalization to reflect the number of samples
     for cam in cams:
-        cam['cam_normalization'] = cam['cam_normalization'] / cam['remaining']
+        cam['light_name'] = light.name
+        cam['cam_normalization'] = cam['cam_normalization'] / cam['samples']
         if bpy.context.scene.cb_props.bake_energy or len(
                 bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].all_objects) > 1:
             cam['cam_normalization'] *= light.data.energy

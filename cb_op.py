@@ -149,24 +149,35 @@ class CBRunBaking(bpy.types.Operator):
         self.light_amount = None
         self.light_count = 0
         self.original_scene_settings = None
+        self.is_sequence = False
+        self.is_first_on_frame = True
+        self.start_frame = 0
+        self.end_frame = 0
+        self.current_frame = 0
+        self.last_frame = 0
         self.active_cam = None
-        self.cams = None
+        self.active_cam_samples = 0
+        self.cam_list = []
+        self.cam_index = -1
         cb_props = bpy.context.scene.cb_props
         self._timer = None
         self.stop = False
-        self.render = True
+        self.render_finished = True
         self.coordinates = None
-        self.startTime = datetime.now()
+        self.start_time = datetime.now()
+        self.last_start_time = datetime.now()
         self.colored = cb_props.colored
         if cb_props.useImage:
             self.textureRes = cb_props.targetImage.size[0]
         else:
             self.textureRes = cb_props.textureRes
-        self.samples = 0
+        self.total_sample_count = 0
         self.counter = 0
         self.target = np.full((self.textureRes * self.textureRes, 4), [0.0, 0.0, 0.0, 1.0])
+        self.last_frame_target = None
         self.finish = False
         self.threads = []
+        self.last_frame_threads = None
         self.image_normalization = (self.textureRes ** 2) / ((1024 * cb_props.sampleResMultiplier) ** 2)
 
         if cb_props.useImage:
@@ -177,9 +188,6 @@ class CBRunBaking(bpy.types.Operator):
                 self.image = bpy.data.images.new(name=cb_props.imageName, width=self.textureRes,
                                                  height=self.textureRes,
                                                  alpha=False, float_buffer=True)
-            else:
-                self.image.scale(self.textureRes, self.textureRes)
-
         self.spaceInfo = None
 
     def execute(self, context):
@@ -199,9 +207,7 @@ class CBRunBaking(bpy.types.Operator):
                         # with no valid coordinates found all remaining samples for the camera are skipped
                         scene.cycles.seed = scene.cycles.seed + 1
                         self.coordinates = None
-                        self.counter += self.active_cam['remaining']
-                        self.active_cam['remaining'] = 0
-                        self.update_info()
+                        self.active_cam_samples = 0
                 else:
                     # starting the processing thread with the saved coordinates and the color information of the
                     # current render
@@ -209,7 +215,7 @@ class CBRunBaking(bpy.types.Operator):
                     thread = threading.Thread(target=compute_caustic_map,
                                               args=[self.target, self.coordinates,
                                                     np.array(bpy.data.images['Viewer Node'].pixels[:]).reshape(-1, 4),
-                                                    self.textureRes, self.colored, self.counter,
+                                                    self.textureRes, self.colored,
                                                     self.active_cam.data.type == 'PANO',
                                                     bpy.context.scene.render.resolution_x, fov,
                                                     self.image_normalization * self.active_cam['cam_normalization'],
@@ -222,9 +228,7 @@ class CBRunBaking(bpy.types.Operator):
 
                     # resetting for next sample
                     self.coordinates = None
-                    self.active_cam['remaining'] -= 1
-                    self.counter += 1
-                    self.update_info()
+                    self.active_cam_samples -= 1
                     color_sampling(0)
             else:
                 # process with only luminance, coordinate information is directly given to the processing function
@@ -232,7 +236,7 @@ class CBRunBaking(bpy.types.Operator):
                 thread = threading.Thread(target=compute_caustic_map,
                                           args=[self.target,
                                                 np.array(bpy.data.images['Viewer Node'].pixels[:]).reshape(-1, 4),
-                                                np.empty(0), self.textureRes, self.colored, self.counter,
+                                                np.empty(0), self.textureRes, self.colored,
                                                 self.active_cam.data.type == 'PANO',
                                                 bpy.context.scene.render.resolution_x, fov,
                                                 self.image_normalization * self.active_cam['cam_normalization'],
@@ -243,106 +247,167 @@ class CBRunBaking(bpy.types.Operator):
                 # resetting for next sample
                 scene.cycles.seed = scene.cycles.seed + 1
                 if (np.array(bpy.data.images['Viewer Node'].pixels[:]).reshape(-1, 4)[:, 2] > 0).any():
-                    self.active_cam['remaining'] -= 1
-                    self.counter += 1
+                    self.active_cam_samples -= 1
                 else:
                     # with no valid coordinates found all remaining samples for the camera are skipped
-                    self.counter += self.active_cam['remaining']
-                    self.active_cam['remaining'] = 0
-                self.update_info()
-                self.ui_updated = False
-            self.render = True
+                    self.active_cam_samples = 0
+            self.render_finished = True
+            self.counter+= .5 if self.colored else 1
 
     def cancelled(self, scene, context=None):
         self.stop = True
 
     # updates the information displayed in the statusbar
-    def update_info(self):
-        if self.counter < self.samples:
-            bpy.context.scene.cb_props.progress_indicator_text = f'Light {self.light_count + 1}/{self.light_amount} | Render {self.counter + 1}/{self.samples}'
+    def update_info(self, custom_text = None):
+        bpy.context.scene.cb_props.progress_information_text = ''
+        if custom_text is not None:
+            bpy.context.scene.cb_props.progress_indicator_text = custom_text
+        elif self.cam_index == -1:
+            bpy.context.scene.cb_props.progress_indicator_text = 'Getting Ready'
+        elif self.counter < self.total_sample_count:
+            bpy.context.scene.cb_props.progress_indicator_text = (
+                f'Light {self.active_cam["light_index"] + 1}/{self.light_amount} | '
+                f'Cam {self.active_cam["cam_index"] + 1}/{self.active_cam["light_cam_amount"]} | '
+                f'Render {self.active_cam["samples"] - self.active_cam_samples + 1}/{self.active_cam["samples"]}')
+            bpy.context.scene.cb_props.progress_information_text = f'Computing Light {self.active_cam["light_name"]} '
         else:
-            bpy.context.scene.cb_props.progress_indicator_text = f'Processing'
-        bpy.context.scene.cb_props.progress_indicator = (
-                                                                self.counter / self.samples / self.light_amount + self.light_count / self.light_amount) * 100
-        bpy.context.scene.cb_props.time_elapsed = str(datetime.now() - self.startTime)
-        self.ui_updated = True
+            bpy.context.scene.cb_props.progress_indicator_text = 'Computing Final Result'
+        if self.total_sample_count == 0:
+            bpy.context.scene.cb_props.progress_indicator = 0
+        else:
+            bpy.context.scene.cb_props.progress_indicator = (self.counter / self.total_sample_count) * 100
+        bpy.context.scene.cb_props.time_elapsed = str(datetime.now() - self.start_time)
+        # forcing an ui update
+        bpy.context.scene.frame_set(self.current_frame)
+
 
     def modal(self, context, event):
         if event.type == 'ESC':
             self.stop = True
         if event.type == 'TIMER':
-            cb_props = bpy.context.scene.cb_props
-            self.update_info()
-            if self.finish and not self.stop:
-                # waiting for the data processing to finish which is handled in separate threads
-                for thread in self.threads:
-                    thread.join()
-
-                # setting the image alpha to 1 and transferring the data into a blender image object
-                self.target[:, 3] = 1
+            if self.last_frame_target is not None:
+                self.image.pixels = self.last_frame_target.reshape(-1)
+            else:
                 self.image.pixels = self.target.reshape(-1)
+            self.update_info()
+            if self.ui_updated:
+                cb_props = bpy.context.scene.cb_props
+                if self.is_first_on_frame and self.current_frame <= self.end_frame:
+                    print(f'setup of frame {self.current_frame}')
+                    bpy.context.scene.frame_set(self.current_frame)
+                    self.is_first_on_frame = False
+                    build_collections()
+                    setup_compositor()
+                    self.light_amount = len(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].all_objects)
+                    contributor_amount = len(bpy.data.collections[CAUSTIC_CONTRIBUTOR_ATTRIBUTE].all_objects)
+                    receiver_amount = len(bpy.data.collections[CAUSTIC_RECEIVER_ATTRIBUTE].all_objects)
+                    self.target = np.full((self.textureRes * self.textureRes, 4), [0.0, 0.0, 0.0, 1.0])
+                    if self.light_amount > 0 and contributor_amount > 0 and receiver_amount > 0:
+                        self.finish = False
+                        self.cam_index = -1
+                        self.threads.clear()
+                        self.start_time = datetime.now()
+                        self.counter = 0
+                        self.cam_list.clear()
+                        self.total_sample_count = 0
+                        for light_index, light in enumerate(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].objects):
+                            cams = auto_cam_placement(light)
+                            for cam_index, cam in enumerate(cams):
+                                cam['light_index'] = light_index
+                                cam['cam_index'] = cam_index
+                                cam['light_cam_amount'] = len(cams)
+                                self.cam_list.append(cam)
+                                self.total_sample_count += cam['samples']
 
-                # denoising the image
-                if cb_props.denoise:
-                    context.scene.cb_props.progress_indicator_text = 'Denoising'
-                    self.image.pixels = denoising(self.image.name)
+                if self.finish and not self.stop:
+                    # moving data processing to different variables so the next frame can continue
+                    if self.last_frame_threads is None:
+                        self.last_frame_target = self.target
+                        self.last_frame_threads = self.threads
+                        self.last_start_time = self.start_time
+                        self.last_frame = self.current_frame
+                        if self.is_sequence:
+                            self.current_frame += 1
+                            self.is_first_on_frame = True
 
-                # saving the image externally
-                self.image.file_format = 'OPEN_EXR'
-                if cb_props.save_image_externally:
-                    if cb_props.useImage:
-                        image_name = cb_props.targetImage.name
-                    else:
-                        image_name = cb_props.imageName
-                    self.image.filepath_raw = cb_props.filePath + image_name + '.exr'
-                    self.image.save()
 
-                print("caustic map complete in", datetime.now() - self.startTime)
-                self.stop = True
+                    # waiting for the data processing to finish which is handled in separate threads
+                    compute_finished = True
+                    for thread in self.last_frame_threads:
+                        if thread.is_alive():
+                            compute_finished = False
 
-            if self.stop:
-                # resetting the blender scene to its original state
-                reset_compositor()
-                reset_scene(bpy.context.scene, self.original_scene_settings)
-                bpy.app.handlers.render_post.remove(self.post)
-                bpy.app.handlers.render_cancel.remove(self.cancelled)
-                remove_collections()
-                bpy.context.workspace.status_text_set(None)
-                context.window_manager.event_timer_remove(self._timer)
-                cb_props.cb_running_baking = False
-                return {"FINISHED"}
+                    if compute_finished:
+                        # setting the image alpha to 1 and transferring the data into a blender image object
+                        self.last_frame_target[:, 3] = 1
+                        self.image.pixels = self.last_frame_target.reshape(-1)
 
-            elif self.render and self.ui_updated:
-                if self.active_cam['remaining'] <= 0:
-                    if len(self.cams) > 0:
-                        # switching to next cam
-                        self.active_cam = self.cams.pop()
-                    else:
-                        # switching to next light
-                        self.light_count += 1
-                        if self.light_count < self.light_amount:
-                            self.cams = auto_cam_placement(
-                                bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].objects[self.light_count])
-                            self.samples = 0
-                            for cam in self.cams:
-                                self.samples += cam['remaining']
-                            self.active_cam = self.cams.pop()
-                            self.counter = 0
+                        # denoising the image
+                        if cb_props.denoise:
+                            self.image.pixels = denoising(self.image.name)
+
+                        # saving the image externally
+                        if cb_props.save_image_externally:
+                            if cb_props.useImage:
+                                image_name = cb_props.targetImage.name
+                            else:
+                                image_name = cb_props.imageName
+                            if self.is_sequence:
+                                image_name += f'_{self.last_frame}'.zfill(len(str(self.end_frame)))
+
+                            self.image.filepath_raw = cb_props.filePath + image_name + '.exr'
+                            self.image.save()
+                            self.image.save_render(bpy.path.abspath(self.image.filepath_raw), quality=cb_props.image_quality)
+
+                        cb_props.time_last = str(datetime.now() - self.last_start_time)
+                        self.last_frame_threads = None
+                        if self.is_sequence:
+                            print(f'caustic map of frame {self.last_frame} completed in {datetime.now() - self.last_start_time}')
+                        else:
+                            print("caustic map complete in", datetime.now() - self.last_start_time)
+                        if self.last_frame >= self.end_frame:
+                            self.stop = True
+
+                if self.stop:
+                    # resetting the blender scene to its original state
+                    reset_compositor()
+                    reset_scene(bpy.context.scene, self.original_scene_settings)
+                    bpy.app.handlers.render_post.remove(self.post)
+                    bpy.app.handlers.render_cancel.remove(self.cancelled)
+                    remove_collections()
+                    bpy.context.workspace.status_text_set(None)
+                    context.window_manager.event_timer_remove(self._timer)
+                    return {"FINISHED"}
+
+                if self.render_finished:
+                    if self.cam_index == -1 or self.active_cam_samples <= 0:
+                        if self.cam_index < len(self.cam_list) - 1:
+                            # switching to next cam
+                            self.cam_index+=1
+                            self.active_cam = self.cam_list[self.cam_index]
+                            self.active_cam_samples = self.active_cam['samples']
                             self.update_info()
                         else:
                             self.finish = True
 
-                # starting next sample
-                if self.active_cam['remaining'] > 0:
-                    cam_setup(self.active_cam)
-                    self.render = False
-                    bpy.ops.render.render()
-                    # updating output image
-                    self.image.pixels = self.target.reshape(-1)
+                    # starting next sample
+                    if self.active_cam_samples > 0 and self.ui_updated:
+                        cam_setup(self.active_cam)
+                        self.render_finished = False
+                        self.ui_updated = False
+                        bpy.ops.render.render()
+            else:
+                self.ui_updated = True
 
         return {"PASS_THROUGH"}
 
     def invoke(self, context, event):
+        for window in context.window_manager.windows:
+            for operator in window.modal_operators:
+                if operator.bl_idname == self.bl_idname:
+                    show_message_box(message='The bake is already running', title='Already Running', icon='ERROR')
+                    return {'FINISHED'}
+
         missing_material = False
         message = 'The following objects are missing a material: '
         for obj in bpy.context.scene.objects:
@@ -350,42 +415,55 @@ class CBRunBaking(bpy.types.Operator):
                 if obj.active_material == None:
                     missing_material = True
                     message += obj.name+', '
-        cb_props = bpy.context.scene.cb_props
         if missing_material:
             show_message_box(message=message, title='Missing material detected', icon='ERROR')
-        elif not cb_props.cb_running_baking:
-            # setting up the baking process
-            cb_props.cb_running_baking = True
-            setup_geo_node_groups()
-            setup_shader_node_group()
-            build_collections()
-            self.light_amount = len(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].all_objects)
-            self.cams = auto_cam_placement(bpy.data.collections[CAUSTIC_SOURCE_ATTRIBUTE].objects[self.light_count])
-            for cam in self.cams:
-                self.samples += cam['remaining']
-            self.active_cam = self.cams.pop()
-            self.original_scene_settings = scene_setup(bpy.context.scene)
-            setup_compositor()
-            self.colored = cb_props.colored
-            self.update_info()
+            return {'FINISHED'}
 
-            # adding handlers and starting modal operator
-            bpy.app.handlers.render_post.append(self.post)
-            bpy.app.handlers.render_cancel.append(self.cancelled)
-            bpy.context.workspace.status_text_set(info)
-            self._timer = context.window_manager.event_timer_add(0.5, window=context.window)
-            context.window_manager.modal_handler_add(self)
-            return {'RUNNING_MODAL'}
-        return {"FINISHED"}
+        # setting image settings
+        self.image.alpha_mode = 'NONE'
+        self.image.scale(self.textureRes, self.textureRes)
+        self.image.use_half_precision = False
+        self.image.file_format = 'OPEN_EXR'
+        self.image.colorspace_settings.is_data = True
+
+        # setting up the baking process
+        cb_props = bpy.context.scene.cb_props
+        setup_geo_node_groups()
+        setup_shader_node_group()
+        self.is_sequence = cb_props.is_sequence
+        if cb_props.is_sequence:
+            if cb_props.overwrite_range:
+                self.start_frame = cb_props.sequence_start
+                self.end_frame = cb_props.sequence_end
+            else:
+                self.start_frame = bpy.context.scene.frame_start
+                self.end_frame = bpy.context.scene.frame_end
+        else:
+            self.start_frame = bpy.context.scene.frame_current
+            self.end_frame = bpy.context.scene.frame_current
+        self.current_frame = self.start_frame
+        self.original_scene_settings = scene_setup(bpy.context.scene)
+        self.colored = cb_props.colored
+        self.update_info()
+
+        # adding handlers and starting modal operator
+        bpy.app.handlers.render_post.append(self.post)
+        bpy.app.handlers.render_cancel.append(self.cancelled)
+        bpy.context.workspace.status_text_set(info)
+        self._timer = context.window_manager.event_timer_add(.1, window=context.window)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
 
 
 # callback to display progress information in the statusbar
 def info(header, context):
     layout = header.layout
-    layout.label(text="to cancel", icon='EVENT_ESC')
-    layout.prop(context.scene.cb_props, "time_elapsed", text='time elapsed', emboss=False)
+    layout.label(text=" to cancel", icon='EVENT_ESC')
+    layout.prop(context.scene.cb_props, "time_last", text='Last', emboss=False)
+    layout.prop(context.scene.cb_props, "time_elapsed", text='Time', emboss=False)
     layout.prop(context.scene.cb_props, "progress_indicator",
                 text=context.scene.cb_props.progress_indicator_text, slider=True)
+    layout.label(text=context.scene.cb_props.progress_information_text)
 
 
 def show_message_box(message="", title="Message Box", icon='INFO'):

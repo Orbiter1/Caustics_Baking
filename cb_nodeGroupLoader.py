@@ -169,7 +169,7 @@ def import_node_group_from_json(name, data):
                             for item in value:
                                 node.capture_items.new(data_type_to_socket_type(item['data_type']), item['name'])
                         case 'active_item':
-                            print()
+                            pass
                         case _:
                             setattr(node, atr, value)
 
